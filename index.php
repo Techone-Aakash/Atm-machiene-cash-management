@@ -6,6 +6,7 @@ $GLOBALS['c_id'] = $GLOBALS['final2000note'] = $GLOBALS['final500note'] = $GLOBA
 include "connect.php";
 if(!isset($_SESSION["data"])){
 $_SESSION['data'] = "";
+$_SESSION['notes'] = "";
 $move_back = false;
 }
 
@@ -95,8 +96,8 @@ $sql_atm = "SELECT * FROM atm_detail WHERE Atm_id='ATM001' ";
 $result = mysqli_query($conn, $sql_atm);
 if(mysqli_num_rows($result) != 0){
 $sql_atm_detail = mysqli_fetch_assoc($result);
-$notes = $sql_atm_detail["2000"]."|".$sql_atm_detail["500"]."|".$sql_atm_detail["100"];
-$note_dis = explode("|", $notes);
+$_SESSION['notes'] = $sql_atm_detail["2000"]."|".$sql_atm_detail["500"]."|".$sql_atm_detail["100"];
+$note_dis = explode("|", $_SESSION['notes']);
 $GLOBALS['final2000note'] =  $note_dis[0];
 $GLOBALS['final500note'] =  $note_dis[1];
 $GLOBALS['final100note'] =  $note_dis[2];
@@ -129,16 +130,33 @@ mysqli_free_result($result);
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["continue"]) ) {
 // customer id ? withdrawn amount ? customer balence ? 2000|500|100 notes
 $get_data = explode('?', $_SESSION['data']);
-//now $get_data[2] is current updataed balence
+
+$get_atm_notes = explode('|', $_SESSION['notes']);// $get_atm_notes 
+$get_notes = explode('|', $get_data[3]);// $get_notes 
+
+$get_atm_notes[0] -= $get_notes[0];//2000 notes
+$get_atm_notes[1] -= $get_notes[1];//500 notes
+$get_atm_notes[2] -= $get_notes[2];//100 notes
+
+//now $get_data[2] is current updatad balence
 $get_data[2] = $get_data[2] - $get_data[1];
 $sql_tran_detail = "INSERT INTO c_trans_details(`c_id`, `c_withdraw_amt`, `c_up_bal`, `2000 | 500 | 100`) VALUES ( '$get_data[0]','$get_data[1]','$get_data[2]','$get_data[3]' )";
+
 if(mysqli_query($conn,$sql_tran_detail)){
 $success = "<h2>".$get_data[1]." has been debited successfully from your Account number : ".$get_data[0]."</h2></br><h3>Available balence : ".$get_data[2]."</h3></br>" ;
+
+$up_atm_notes = "UPDATE atm_detail SET `2000`=$get_atm_notes[0],`500`=$get_atm_notes[1],`100`=$get_atm_notes[2] WHERE Atm_id = 'ATM001' ";
+
+if(mysqli_query($conn,$up_atm_notes)){
 $sql_up_bal = "UPDATE customer_detail SET c_bal= '$get_data[2]' WHERE c_id = '$get_data[0]' ";
 if(mysqli_query($conn, $sql_up_bal)){
     session_destroy();
 $move_back = true;
-}}else{
+}
+}else{
+$error = "Internal Server error..";
+}
+}else{
 $error = "Internal Server error..";
 }
 }
